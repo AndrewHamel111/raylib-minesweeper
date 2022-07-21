@@ -1,0 +1,4 @@
+.vscode/**
+*.aseprite
+*.o
+*.exe

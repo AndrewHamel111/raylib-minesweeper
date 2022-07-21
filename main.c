@@ -6,6 +6,10 @@
 #include <stdlib.h>
 #include <time.h>
 
+#if defined(PLATFORM_WEB)
+	#include <emscripten/emscripten.h>
+#endif
+
 #include "raylib.h"
 #include "raymath.h"
 
@@ -59,6 +63,8 @@ void GridInit(void);
 void GridFloodClearFrom(int, int);
 void GameInit(void);
 
+void UpdateDrawFrame(void);
+
 int main()
 {
 	srand(time(0));
@@ -69,72 +75,14 @@ int main()
 
 	GameInit();
 	
+#if defined(PLATFORM_WEB)
+    emscripten_set_main_loop(UpdateDrawFrame, 60, 1); // Attach main loop
+#else
 	while(!WindowShouldClose())
 	{
-		if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT))
-		{
-			Vector2 mPos = GetMousePosition();
-			int indexI = mPos.x / cellWidth;
-			int indexJ = mPos.y / cellHeight;
-
-			if (state == PLAYING && IndexIsValid(indexI, indexJ))
-			{
-				CellReveal(indexI, indexJ);
-			}
-		}
-		else if (IsMouseButtonPressed(MOUSE_BUTTON_RIGHT))
-		{
-			Vector2 mPos = GetMousePosition();
-			int indexI = mPos.x / cellWidth;
-			int indexJ = mPos.y / cellHeight;
-
-			if (state == PLAYING && IndexIsValid(indexI, indexJ))
-			{
-				CellFlag(indexI, indexJ);
-			}
-		}
-
-		if (IsKeyPressed(KEY_R))
-		{
-			GameInit();
-		}
-
-		BeginDrawing();
-
-			ClearBackground(RAYWHITE);
-			
-			for (int i = 0; i < COLS; i++)
-			{
-				for (int j = 0; j < ROWS; j++)
-				{
-					CellDraw(grid[i][j]);
-				}
-			}
-
-			if (state == LOSE)
-			{
-				DrawRectangle(0, 0, screenWidth,screenHeight, Fade(WHITE, 0.8f));
-				DrawText(youLose, screenWidth / 2 - MeasureText(youLose, 40) / 2, screenHeight / 2 - 10, 40, DARKGRAY);
-				DrawText(pressRToRestart, screenWidth / 2 - MeasureText(pressRToRestart, 20) / 2, screenHeight * 0.75f - 10, 20, DARKGRAY);
-
-				int minutes = (int)(timeGameEnded - timeGameStarted) / 60;
-				int seconds = (int)(timeGameEnded - timeGameStarted) % 60;
-				DrawText(TextFormat("Time played: %d minutes, %d seconds.", minutes, seconds), 20, screenHeight - 40, 20, DARKGRAY);
-			}
-
-			if (state == WIN)
-			{
-				DrawRectangle(0, 0, screenWidth,screenHeight, Fade(WHITE, 0.8f));
-				DrawText(youWin, screenWidth / 2 - MeasureText(youWin, 40) / 2, screenHeight / 2 - 10, 40, DARKGRAY);
-				DrawText(pressRToRestart, screenWidth / 2 - MeasureText(pressRToRestart, 20) / 2, screenHeight * 0.75f - 10, 20, DARKGRAY);
-
-				int minutes = (int)(timeGameEnded - timeGameStarted) / 60;
-				int seconds = (int)(timeGameEnded - timeGameStarted) % 60;
-				DrawText(TextFormat("Time played: %d minutes, %d seconds.", minutes, seconds), 20, screenHeight - 40, 20, DARKGRAY);
-			}
-
-		EndDrawing();
+		UpdateDrawFrame();
 	}
+#endif
 	
 	CloseWindow();
 	
@@ -316,4 +264,71 @@ void GameInit(void)
 	state = PLAYING;
 	tilesRevealed = 0;
 	timeGameStarted = GetTime();
+}
+
+void UpdateDrawFrame(void)
+{
+	if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT))
+	{
+		Vector2 mPos = GetMousePosition();
+		int indexI = mPos.x / cellWidth;
+		int indexJ = mPos.y / cellHeight;
+
+		if (state == PLAYING && IndexIsValid(indexI, indexJ))
+		{
+			CellReveal(indexI, indexJ);
+		}
+	}
+	else if (IsMouseButtonPressed(MOUSE_BUTTON_RIGHT))
+	{
+		Vector2 mPos = GetMousePosition();
+		int indexI = mPos.x / cellWidth;
+		int indexJ = mPos.y / cellHeight;
+
+		if (state == PLAYING && IndexIsValid(indexI, indexJ))
+		{
+			CellFlag(indexI, indexJ);
+		}
+	}
+
+	if (IsKeyPressed(KEY_R))
+	{
+		GameInit();
+	}
+
+	BeginDrawing();
+
+		ClearBackground(RAYWHITE);
+		
+		for (int i = 0; i < COLS; i++)
+		{
+			for (int j = 0; j < ROWS; j++)
+			{
+				CellDraw(grid[i][j]);
+			}
+		}
+
+		if (state == LOSE)
+		{
+			DrawRectangle(0, 0, screenWidth,screenHeight, Fade(WHITE, 0.8f));
+			DrawText(youLose, screenWidth / 2 - MeasureText(youLose, 40) / 2, screenHeight / 2 - 10, 40, DARKGRAY);
+			DrawText(pressRToRestart, screenWidth / 2 - MeasureText(pressRToRestart, 20) / 2, screenHeight * 0.75f - 10, 20, DARKGRAY);
+
+			int minutes = (int)(timeGameEnded - timeGameStarted) / 60;
+			int seconds = (int)(timeGameEnded - timeGameStarted) % 60;
+			DrawText(TextFormat("Time played: %d minutes, %d seconds.", minutes, seconds), 20, screenHeight - 40, 20, DARKGRAY);
+		}
+
+		if (state == WIN)
+		{
+			DrawRectangle(0, 0, screenWidth,screenHeight, Fade(WHITE, 0.8f));
+			DrawText(youWin, screenWidth / 2 - MeasureText(youWin, 40) / 2, screenHeight / 2 - 10, 40, DARKGRAY);
+			DrawText(pressRToRestart, screenWidth / 2 - MeasureText(pressRToRestart, 20) / 2, screenHeight * 0.75f - 10, 20, DARKGRAY);
+
+			int minutes = (int)(timeGameEnded - timeGameStarted) / 60;
+			int seconds = (int)(timeGameEnded - timeGameStarted) % 60;
+			DrawText(TextFormat("Time played: %d minutes, %d seconds.", minutes, seconds), 20, screenHeight - 40, 20, DARKGRAY);
+		}
+
+	EndDrawing();
 }
