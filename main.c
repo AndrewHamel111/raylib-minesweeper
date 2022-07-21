@@ -18,6 +18,7 @@
 
 const int screenWidth = 600;
 const int screenHeight = 600;
+const Vector2 screenSize = {screenWidth, screenHeight};
 
 const int cellWidth = screenWidth / COLS;
 const int cellHeight = screenHeight / ROWS;
@@ -39,8 +40,11 @@ typedef struct Cell
 Cell grid[COLS][ROWS];
 
 Texture2D flagSprite;
+Texture2D tileAtlas;
 int tilesRevealed;
 int minesPresent;
+
+Rectangle tileSource = {0, 0, 16, 16};
 
 typedef enum GameState
 {
@@ -54,6 +58,8 @@ GameState state;
 float timeGameStarted;
 float timeGameEnded;
 
+Camera2D camera;
+
 void CellDraw(Cell);
 bool IndexIsValid(int, int);
 void CellReveal(int, int);
@@ -62,6 +68,15 @@ int CellCountMines(int, int);
 void GridInit(void);
 void GridFloodClearFrom(int, int);
 void GameInit(void);
+void ResetCamera(void);
+bool _dragging;
+Vector2 _dragStartScreenPosition;
+
+#if defined(PLATFORM_WEB)
+	float mouseWheelDirection = -1.0f;
+#else
+	float mouseWheelDirection = 1.0f;
+#endif
 
 void UpdateDrawFrame(void);
 
@@ -72,6 +87,7 @@ int main()
 	InitWindow(screenWidth, screenHeight, "Raylib Minesweeper by Andrew Hamel");
 
 	flagSprite = LoadTexture("resources/flag.png");
+	tileAtlas = LoadTexture("resources/tiles.png");
 
 	GameInit();
 	
@@ -91,6 +107,7 @@ int main()
 
 void CellDraw(Cell cell)
 {
+	Rectangle dest = {cell.i * cellWidth, cell.j * cellHeight, cellWidth, cellHeight};
 	if (cell.revealed)
 	{
 		if (cell.containsMine)
@@ -103,15 +120,16 @@ void CellDraw(Cell cell)
 
 			if (cell.nearbyMines > 0)
 			{
-				DrawText(TextFormat("%d", cell.nearbyMines), cell.i * cellWidth + 12, cell.j * cellHeight + 4, cellHeight - 8, DARKGRAY);
+				Rectangle source = tileSource;
+				source.x = (cell.nearbyMines - 1) * 16;
+				Vector2 origin = {0, 0};
+				DrawTexturePro(tileAtlas, source, dest, origin, 0.0f, WHITE);
 			}
 		}
 	}
 	else if (cell.flagged)
 	{
-		// draw flag
 		Rectangle source = {0, 0, flagSprite.width, flagSprite.height};
-		Rectangle dest = {cell.i * cellWidth, cell.j * cellHeight, cellWidth, cellHeight};
 		Vector2 origin = {0, 0};
 
 		DrawTexturePro(flagSprite, source, dest, origin, 0.0f, Fade(WHITE, 0.5f));
@@ -264,49 +282,115 @@ void GameInit(void)
 	state = PLAYING;
 	tilesRevealed = 0;
 	timeGameStarted = GetTime();
+	_dragging = false;
+
+	ResetCamera();
+}
+
+void ResetCamera(void)
+{
+	camera = (Camera2D)
+	{
+		.offset = Vector2Scale(screenSize, 0.5f),
+		.rotation = 0.0f,
+		.target = Vector2Scale(screenSize, 0.5f),
+		.zoom = 1.0f
+	};
 }
 
 void UpdateDrawFrame(void)
 {
-	if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT))
+	if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) || IsMouseButtonPressed(MOUSE_BUTTON_RIGHT))
 	{
-		Vector2 mPos = GetMousePosition();
-		int indexI = mPos.x / cellWidth;
-		int indexJ = mPos.y / cellHeight;
-
-		if (state == PLAYING && IndexIsValid(indexI, indexJ))
+		_dragStartScreenPosition = GetMousePosition();
+	}
+	else if (IsMouseButtonDown(MOUSE_BUTTON_LEFT) || IsMouseButtonDown(MOUSE_BUTTON_RIGHT))
+	{
+		if (Vector2Distance(_dragStartScreenPosition, GetMousePosition()) > 10)
 		{
-			CellReveal(indexI, indexJ);
+			_dragging = true;
 		}
 	}
-	else if (IsMouseButtonPressed(MOUSE_BUTTON_RIGHT))
+	else if (IsMouseButtonReleased(MOUSE_BUTTON_RIGHT))
 	{
-		Vector2 mPos = GetMousePosition();
-		int indexI = mPos.x / cellWidth;
-		int indexJ = mPos.y / cellHeight;
-
-		if (state == PLAYING && IndexIsValid(indexI, indexJ))
+		if (_dragging)
 		{
-			CellFlag(indexI, indexJ);
+			_dragging = false;
+		}
+		else
+		{
+			Vector2 mPos = GetScreenToWorld2D(GetMousePosition(), camera);
+			int indexI = mPos.x / cellWidth;
+			int indexJ = mPos.y / cellHeight;
+
+			if (state == PLAYING && IndexIsValid(indexI, indexJ))
+			{
+				CellFlag(indexI, indexJ);
+			}
+		}
+	}
+	else if (IsMouseButtonReleased(MOUSE_BUTTON_LEFT))
+	{
+		if (_dragging)
+		{
+			_dragging = false;
+		}
+		else
+		{
+			Vector2 mPos = GetScreenToWorld2D(GetMousePosition(), camera);
+			int indexI = mPos.x / cellWidth;
+			int indexJ = mPos.y / cellHeight;
+
+			if (state == PLAYING && IndexIsValid(indexI, indexJ))
+			{
+				CellReveal(indexI, indexJ);
+			}
 		}
 	}
 
-	if (IsKeyPressed(KEY_R))
+	if (_dragging)
+	{
+		Vector2 screenScroll = Vector2Subtract(GetMousePosition(), _dragStartScreenPosition);
+		screenScroll = Vector2Scale(screenScroll, 1.0f / camera.zoom);
+		_dragStartScreenPosition = GetMousePosition();
+
+		camera.target = Vector2Subtract(camera.target, screenScroll);
+	}
+
+	if (IsKeyPressed(KEY_R) && state != PLAYING)
 	{
 		GameInit();
+	}
+	else if (IsKeyPressed(KEY_ZERO))
+	{
+		ResetCamera();
+	}
+
+	float move = GetMouseWheelMove();
+	if (move > 0.5f)
+	{
+		camera.zoom += 0.1f * mouseWheelDirection;
+	}
+	else if (move < -0.5f)
+	{
+		camera.zoom -= 0.1f * mouseWheelDirection;
 	}
 
 	BeginDrawing();
 
 		ClearBackground(RAYWHITE);
+
+		BeginMode2D(camera);
 		
-		for (int i = 0; i < COLS; i++)
-		{
-			for (int j = 0; j < ROWS; j++)
+			for (int i = 0; i < COLS; i++)
 			{
-				CellDraw(grid[i][j]);
+				for (int j = 0; j < ROWS; j++)
+				{
+					CellDraw(grid[i][j]);
+				}
 			}
-		}
+
+		EndMode2D();
 
 		if (state == LOSE)
 		{

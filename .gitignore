@@ -1,4 +1,5 @@
 .vscode/**
+build/**
 *.aseprite
 *.o
 *.exe
