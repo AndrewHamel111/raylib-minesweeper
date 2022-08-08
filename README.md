@@ -1,7 +1,7 @@
 # raylib-minesweeper
 A super-duper basic minesweeper in all raylib's pure-C glory!
 
-This repo was created as a resource for my tutorial on [Andrew Hamel Codes](https://www.youtube.com/channel/UCETp9EybHuo0AM6tZMzdHxA).
+This repo was created as a resource for my [tutorial](https://www.youtube.com/watch?v=3-EYrPRdjp4) on [Andrew Hamel Codes](https://www.youtube.com/channel/UCETp9EybHuo0AM6tZMzdHxA).
 
 Don't think of this as a game, but instead a minimum-implementation of Minesweeper. There isn't much code here whatsoever, so expanding it to add some fancy animations, sound effects, a kind of leaderboard (whatever you'd like, really) could be easy! To get this baseline implementation only took ~90 minutes, and to expand it more wouldn't take much. The game already supports an arbitrary number of rows / columns and can scale to any screen size that is hardcoded at the top of main.
 

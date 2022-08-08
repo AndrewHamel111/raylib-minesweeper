@@ -1,7 +1,7 @@
 // Raylib Minesweeper
 // Andrew Hamel Codes
 // https://github.com/AndrewHamel111/raylib-minesweeper
-// YOUTUBE LINK
+// https://www.youtube.com/watch?v=3-EYrPRdjp4
 
 #include <stdlib.h>
 #include <time.h>
